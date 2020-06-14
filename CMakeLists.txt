@@ -3,4 +3,5 @@ project(verlet)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(verlet main.cpp)
+add_executable(verlet
+        main.cpp)
