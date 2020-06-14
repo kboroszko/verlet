@@ -10,12 +10,27 @@
 #include <assert.h>
 #include <mpi.h>
 #include <iostream>
+#include <utility>
 #include <vector>
 #include <sstream>
+#include "Particle.h"
 
 #define LOG(msg, rank) {stream<<msg<<"\n";}
 #define LOG2(msg1, msg2, rank) {stream<<msg1 << msg2 <<"\n";}
 #define LOG3(msg1, msg2, msg3, rank) {stream<<msg1 << msg2 << msg3<<"\n";}
+
+
+class Buffer{
+public:
+    std::vector<Particle> particles;
+    double id;
+    Buffer(std::vector<Particle> particles ,double id);
+};
+
+Buffer::Buffer(std::vector<Particle> particles, double id) {
+    this->particles = std::move(particles);
+    this->id = id;
+}
 
 
 std::stringstream stream;
@@ -151,14 +166,19 @@ int main(int argc, char * argv[])
 
     if( (p%3) == 0){
 //        LOG("EXTRA", 0)
+        buff_i = buff_i > 0 ? buff_i - 1 : 2;
         shift_right(buffs[buff_i], myProcessNo, numProcesses);
-        calculateBufs(&b0,&b1,&b2, myProcessNo);
+
+        if((myProcessNo)%(p/3) == 0){
+            calculateBufs(&b0,&b1,&b2, myProcessNo);
+        }
+
     }
 
     for(int i=0; i<numProcesses; i++){
         MPI_Barrier(MPI_COMM_WORLD);
         if(myProcessNo == i){
-//            std::cout << "PROC-" << i << "LOG\n";
+//            std::cout << "PROC-" << i << " LOG\n";
             std::cout << stream.str() ; //<< "\n";
         }
     }
