@@ -1,4 +1,5 @@
 # Patryk Czajka
+# refactored to use python3 Kajetan Boroszko
 
 import sys
 
