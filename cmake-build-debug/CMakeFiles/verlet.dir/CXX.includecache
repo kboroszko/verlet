@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/kajetan/studia/hpc/verlet/main.cpp
+iostream
+-
+math.h
+-
+fstream
+-
+vector
+-
+sstream
+-
+iomanip
+-
+
