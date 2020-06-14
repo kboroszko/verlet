@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <limits>
 
 #define EPS 4.69041575982343e-08
 #define MINIMAL(x) (((x) > 1e-10) ? (x) : 1e-10)
@@ -142,7 +143,7 @@ Vector dV(Vector ri, Vector rj, Vector rk){
     Vector rix_minus(x_minus, ri.y, ri.z);
     dVx = V(rix_plus, rj, rk) - V(rix_minus, rj, rk);
     ret.x = dx > EPS*EPS ? dVx/dx : 0;
-    return ret;
+    return ret * 2.;
 }
 
 
@@ -187,63 +188,51 @@ Vector dV(Particle i, Particle j, Particle k){
     return dV(i.pos, j.pos, k.pos);
 }
 
-//int main(int argc, char *argv[]) {
-//    std::ofstream outputFile;
-//    outputFile.open ("out.txt");
-//    std::ofstream outputFile2;
-//    outputFile2.open ("out2.txt");
-//
-//    Particle p1({-1, 0, 0}, {0, 0, 0});
-//    Particle p2({1, 0, 0}, {0, 0, 0});
-//    for(int x = -100; x <= 100; x++){
-//        for(int y = -100; y <= 100; y++){
-//            Particle p3({(double)x/10., (double)y/10., 1}, {0,0,0});
-//            outputFile << V(p3.pos, p1.pos, p2.pos) << ((y < 100) ? "," : "");
-//        }
-//        outputFile << "\n";
-//    }
-//
-//    for(int x = -100; x <= 100; x++){
-//        for(int y = -100; y <= 100; y++){
-//            Particle p3({(double)x/10., (double)y/10., 0}, {0,0,0});
-//            outputFile2 << dV(p3, p1, p2).y << ((y < 100) ? "," : "");
-//            if(y < 5 && y > -5){
-//                std::cout << x << " " << y << " " << dV(p3, p1, p2).toString() << "\n";
-//            }
-//        }
-//        outputFile2 << "\n";
-//    }
-//
-//    return 0;
-//}
+
+void updatePos(std::vector<Particle> &list, double dt){
+    for(int i=0; i<list.size(); i++){
+        list[i].pos = list[i].pos + list[i].vel * dt + list[i].acc * (dt*dt*0.5);
+    }
+}
+
+void updateVelAndAcc(std::vector<Particle> &list, double dt){
+    std::vector<Particle> updated;
+    updated = list;
 
 
-//0.000305489 0.000246931 0.000188394
+    for(int i=0; i<list.size(); i++){
+        updated[i].acc = Vector();
+        for(int j=0; j<list.size(); j++){
+            if( i != j){
+                for(int k=j; k<list.size(); k++){
+                    if(i != k && j!=k){
+                        updated[i].acc = updated[i].acc - dV(list[i], list[j], list[k]);
+                    }
+                }
+            }
+        }
+        updated[i].vel = list[i].vel + (list[i].acc + updated[i].acc)*(dt*0.5);
+    }
+
+    list = updated;
+}
+
+
+
 int main(int argc, char *argv[]) {
     if(argc != 5){
         std::cout << "wrong args\n";
         return 1;
     }
-    double a = 0.00007637217880949, b = 0.00006173286582205, c = 0.0000470984885322;
-//    std::cout << a*4 << " " << b * 4 << " " << c*4 << "\n";
     int n = std::stoi(argv[3]);
     volatile double dt = std::stod(argv[4]);
     auto list = readFile(argv[1]);
 
-    for(Particle p : list){
-        std::cout << p.pos.toString() << " " << p.vel.toString() << "\n";
-    }
-
     std::vector<Particle> updated;
     updated = list;
 
-//    //update pos
-//    for(int i=0; i<list.size(); i++){
-//        list[i].pos = list[i].pos + list[i].vel * dt + list[i].acc * (dt*dt*0.5);
-//    }
 
     for(int i=0; i<list.size(); i++){
-//        updated[i].pos = list[i].pos + list[i].vel * dt + list[i].acc * (dt*dt*0.5);
         updated[i].acc = Vector();
         for(int j=0; j<list.size(); j++){
             if( i != j){
@@ -254,40 +243,39 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
-//        updated[i].acc = updated[i].acc;
-//        updated[i].vel = updated[i].vel + updated[i].acc*dt;
     }
 
     list = updated;
 
-//update pos
-    for(int i=0; i<list.size(); i++){
-        list[i].pos = list[i].pos + list[i].vel * dt + list[i].acc * (dt*dt*0.5);
-    }
+    for(int counter = 0; counter < n; counter++){
+        updatePos(list, dt);
 
-    updated = list;
-
-    for(int i=0; i<list.size(); i++){
-//        updated[i].pos = list[i].pos + list[i].vel * dt + list[i].acc * (dt*dt*0.5);
-        updated[i].acc = Vector();
-        for(int j=0; j<list.size(); j++){
-            if( i != j){
-                for(int k=j; k<list.size(); k++){
-                    if(i != k && j!=k){
-                        updated[i].acc = updated[i].acc - dV(list[i], list[j], list[k]);
-                    }
-                }
-            }
-        }
-//        updated[i].acc = updated[i].acc;
-        updated[i].vel = list[i].vel + (list[i].acc + updated[i].acc)*(dt);
+        updateVelAndAcc(list, dt);
     }
+//
+//    updated = list;
+//
+//    for(int i=0; i<list.size(); i++){
+//        updated[i].acc = Vector();
+//        for(int j=0; j<list.size(); j++){
+//            if( i != j){
+//                for(int k=j; k<list.size(); k++){
+//                    if(i != k && j!=k){
+//                        updated[i].acc = updated[i].acc - dV(list[i], list[j], list[k]);
+//                    }
+//                }
+//            }
+//        }
+//        updated[i].vel = list[i].vel + (list[i].acc + updated[i].acc)*(dt*0.5);
+//    }
 
     std::ofstream outputFile;
     outputFile.open (argv[2]);
-    for(Particle p : updated){
+    for(Particle p : list){
         outputFile << p.pos.toString() << " " << p.vel.toString() << "\n";
-        std::cout << p.pos.toString() << " " << p.vel.toString() << "\n";
+        std::cout << std::setprecision(std::numeric_limits<double>::max_digits10) << p.pos.x << " " << std::setprecision(std::numeric_limits<double>::max_digits10) << p.pos.y << " "<< std::setprecision(std::numeric_limits<double>::max_digits10)  << p.pos.z << " ";
+        std::cout << std::setprecision(10) << p.vel.x << " " << std::setprecision(10) << p.vel.y << " "<< std::setprecision(10)  << p.vel.z ;
+        std::cout << "\n";
     }
     outputFile.close();
 
