@@ -7,7 +7,8 @@
 #include <limits>
 
 #define EPS 4.69041575982343e-08
-#define MINIMAL(x) (((x) > 1e-10) ? (x) : 1e-10)
+#define MINIMAL(x) ((abs(x) > 1e-10) ? (x) : 1e-10)
+#define SETPREC std::setprecision(std::numeric_limits<double>::max_digits10)
 
 
 double V(double rij, double rik, double rkj){
@@ -75,7 +76,7 @@ Vector Vector::operator/(double v) {
 
 std::string Vector::toString() {
     std::stringstream stream;
-    stream << std::setprecision(10) << x << " " << std::setprecision(10) << y << " "<< std::setprecision(10)  << z;
+    stream << SETPREC << x << " " << SETPREC << y << " "<< SETPREC << z;
     return stream.str();
 }
 
@@ -122,7 +123,7 @@ Vector dV(Vector ri, Vector rj, Vector rk){
     Vector riz_plus(ri.x, ri.y, z_plus);
     Vector riz_minus(ri.x, ri.y, z_minus);
     dVz = V(riz_plus, rj, rk) - V(riz_minus, rj, rk);
-    ret.z = dz > EPS*EPS ? dVz/dz : 0;
+    ret.z = abs(dz) > EPS*EPS ? dVz/dz : 0;
     double dVy, y_plus, y_minus;
     volatile double dy;
     double deltay = (ri.y * EPS);
@@ -132,7 +133,7 @@ Vector dV(Vector ri, Vector rj, Vector rk){
     Vector riy_plus(ri.x, y_plus, ri.z);
     Vector riy_minus(ri.x, y_minus, ri.z);
     dVy = V(riy_plus, rj, rk) - V(riy_minus, rj, rk);
-    ret.y = dy > EPS*EPS ? dVy/dy : 0;
+    ret.y = abs(dy) > EPS*EPS ? dVy/dy : 0;
     double dVx, x_plus, x_minus;
     volatile double dx;
     double deltax = (ri.x * EPS) ;
@@ -142,7 +143,7 @@ Vector dV(Vector ri, Vector rj, Vector rk){
     Vector rix_plus(x_plus, ri.y, ri.z);
     Vector rix_minus(x_minus, ri.y, ri.z);
     dVx = V(rix_plus, rj, rk) - V(rix_minus, rj, rk);
-    ret.x = dx > EPS*EPS ? dVx/dx : 0;
+    ret.x = abs(dx) > EPS*EPS ? dVx/dx : 0;
     return ret * 2.;
 }
 
@@ -273,9 +274,7 @@ int main(int argc, char *argv[]) {
     outputFile.open (argv[2]);
     for(Particle p : list){
         outputFile << p.pos.toString() << " " << p.vel.toString() << "\n";
-        std::cout << std::setprecision(std::numeric_limits<double>::max_digits10) << p.pos.x << " " << std::setprecision(std::numeric_limits<double>::max_digits10) << p.pos.y << " "<< std::setprecision(std::numeric_limits<double>::max_digits10)  << p.pos.z << " ";
-        std::cout << std::setprecision(10) << p.vel.x << " " << std::setprecision(10) << p.vel.y << " "<< std::setprecision(10)  << p.vel.z ;
-        std::cout << "\n";
+        std::cout  << p.pos.toString() << " " << p.vel.toString() << "\n";
     }
     outputFile.close();
 
