@@ -4,4 +4,4 @@ project(verlet)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(verlet
-        main.cpp)
+        main.cpp Particle.cpp Particle.h Utils.cpp Utils.h)
