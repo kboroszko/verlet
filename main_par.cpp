@@ -34,7 +34,7 @@ Buffer::Buffer(std::vector<Particle> particles, double id) {
 
 
 std::stringstream stream;
-
+int counter=0;
 
 void sendRecv(int myRank, int numProcesses, double* buffFrom, double* buffTo, int buffSize, bool clockwise, MPI_Request* reqs){
     int rankFrom, rankTo;
@@ -89,9 +89,28 @@ void calculateBufs(std::vector<double>* b0, std::vector<double>* b1, std::vector
     int n0 = b0->at(0);
     int n1 = b1->at(0);
     int n2 = b2->at(0);
-    int num_buf0 = n0/size;
-    int num_buf1 = n1/size;
-    int num_buf2 = n2/size;
+    int num_buf0 = n0;
+    int num_buf1 = n1;
+    int num_buf2 = n2;
+    myRank += 1;
+    if(n0 == n1 && n0 == n2){
+        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+    } else if(n0 == n1) {
+        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        b2->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+    } else if (n0 == n2){
+        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        b1->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+    } else if (n1 == n2){
+        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        b1->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+    } else {
+        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        b1->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        b2->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+    }
+
+    counter++;
 
     stream << num_buf0 << " " << num_buf1 << " " << num_buf2 << "\n";
 }
@@ -118,15 +137,11 @@ int main(int argc, char * argv[])
     std::vector<double> b0;
     std::vector<double> b1;
     std::vector<double> b2;
-    b0.reserve(4);
-    b1.reserve(4);
-    b2.reserve(4);
-    int offset = myProcessNo*4;
-    for(int i=0; i<4; i++){
-        b0.push_back((double) offset+i);
-        b1.push_back((double) offset+i);
-        b2.push_back((double) offset+i);
-    }
+    int offset = myProcessNo;
+    b0.push_back((double) offset);
+    b1.push_back((double) offset);
+    b2.push_back((double) offset);
+
 
     shift_right(&b0, myProcessNo, numProcesses);
     shift_left(&b2, myProcessNo, numProcesses);
@@ -182,6 +197,23 @@ int main(int argc, char * argv[])
             std::cout << stream.str() ; //<< "\n";
         }
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << myProcessNo << ":b0{" << b0[0] ;
+    for(int i=1; i<b0.size(); i++){
+        std::cout << "," << b0[i];
+    }
+    std::cout << "} ";
+    std::cout << ":b1{" << b1[0] ;
+    for(int i=1; i<b1.size(); i++){
+        std::cout << "," << b1[i];
+    }
+    std::cout << "} ";
+    std::cout << myProcessNo << ":b2{" << b2[0] ;
+    for(int i=1; i<b2.size(); i++){
+        std::cout << "," << b2[i];
+    }
+    std::cout << "}\n";
 
     MPI_Finalize();
 
