@@ -14,6 +14,7 @@
 #include <vector>
 #include <sstream>
 #include "Particle.h"
+#include "Utils.h"
 
 #define LOG(msg, rank) {stream<<msg<<"\n";}
 #define LOG2(msg1, msg2, rank) {stream<<msg1 << msg2 <<"\n";}
@@ -68,28 +69,121 @@ void sendRecv(int myRank, int numProcesses, double* buffFrom, double* buffTo, in
  * @param myRank
  * @param numProcesses
  */
-void shift_right(std::vector<double> *bi,int myRank, int numProcesses){
+void shift_right(Buffer *bi,int myRank, int numProcesses){
     auto reqs = new MPI_Request[2];
-    auto * send_buf = new double[bi->size()];
-    auto * recv_buf = bi->data();
-    std::copy(recv_buf, recv_buf+bi->size(), send_buf); //duplicate data so async send/rcv possible
+    auto * send_buf = new double[bi->particles.size()*9 + 1];
+    auto * recv_buf = new double[bi->particles.size()*9 + 1];
 
-    sendRecv(myRank, numProcesses, send_buf, recv_buf, bi->size(), true, reqs);
+    for(int i=0; i<bi->particles.size(); i++){
+        int offset = i*9;
+        send_buf[offset] = bi->particles.at(i).pos.x;
+        send_buf[offset+1] = bi->particles.at(i).pos.y;
+        send_buf[offset+2] = bi->particles.at(i).pos.z;
+        send_buf[offset+3] = bi->particles.at(i).vel.x;
+        send_buf[offset+4] = bi->particles.at(i).vel.y;
+        send_buf[offset+5] = bi->particles.at(i).vel.z;
+        send_buf[offset+6] = bi->particles.at(i).acc.x;
+        send_buf[offset+7] = bi->particles.at(i).acc.y;
+        send_buf[offset+8] = bi->particles.at(i).acc.z;
+    }
+    send_buf[bi->particles.size()*9] = bi->id;
+
+    sendRecv(myRank, numProcesses, send_buf, recv_buf, bi->particles.size()*9+1, true, reqs);
+
+    for(int i=0; i<bi->particles.size(); i++){
+        int offset = i*9;
+        bi->particles[i].pos.x = recv_buf[offset];
+        bi->particles[i].pos.y = recv_buf[offset+1];
+        bi->particles[i].pos.z = recv_buf[offset+2];
+        bi->particles[i].vel.x = recv_buf[offset+3];
+        bi->particles[i].vel.y = recv_buf[offset+4];
+        bi->particles[i].vel.z = recv_buf[offset+5];
+        bi->particles[i].acc.x = recv_buf[offset+6];
+        bi->particles[i].acc.y = recv_buf[offset+7];
+        bi->particles[i].acc.z = recv_buf[offset+8];
+    }
+    bi->id = recv_buf[bi->particles.size()*9];
+
     MPI_Wait(reqs+1, MPI_STATUS_IGNORE);
 }
 
-void shift_left(std::vector<double> *bi,int myRank, int numProcesses){
+void shift_left(Buffer *bi,int myRank, int numProcesses){
     auto reqs = new MPI_Request[2];
-    auto * send_buf = new double[bi->size()];
-    auto * recv_buf = bi->data();
-    std::copy(recv_buf, recv_buf+bi->size(), send_buf); //duplicate data so async send/rcv possible
+    auto * send_buf = new double[bi->particles.size()*9 + 1];
+    auto * recv_buf = new double[bi->particles.size()*9 + 1];
 
-    sendRecv(myRank, numProcesses, send_buf, recv_buf, bi->size(), false, reqs);
+    for(int i=0; i<bi->particles.size(); i++){
+        int offset = i*9;
+        send_buf[offset] = bi->particles.at(i).pos.x;
+        send_buf[offset+1] = bi->particles.at(i).pos.y;
+        send_buf[offset+2] = bi->particles.at(i).pos.z;
+        send_buf[offset+3] = bi->particles.at(i).vel.x;
+        send_buf[offset+4] = bi->particles.at(i).vel.y;
+        send_buf[offset+5] = bi->particles.at(i).vel.z;
+        send_buf[offset+6] = bi->particles.at(i).acc.x;
+        send_buf[offset+7] = bi->particles.at(i).acc.y;
+        send_buf[offset+8] = bi->particles.at(i).acc.z;
+    }
+    send_buf[bi->particles.size()*9] = bi->id;
 
-    MPI_Waitall(2, reqs, MPI_STATUS_IGNORE);
+    sendRecv(myRank, numProcesses, send_buf, recv_buf, bi->particles.size()*9+1, false, reqs);
+
+    for(int i=0; i<bi->particles.size(); i++){
+        int offset = i*9;
+        bi->particles[i].pos.x = recv_buf[offset];
+        bi->particles[i].pos.y = recv_buf[offset+1];
+        bi->particles[i].pos.z = recv_buf[offset+2];
+        bi->particles[i].vel.x = recv_buf[offset+3];
+        bi->particles[i].vel.y = recv_buf[offset+4];
+        bi->particles[i].vel.z = recv_buf[offset+5];
+        bi->particles[i].acc.x = recv_buf[offset+6];
+        bi->particles[i].acc.y = recv_buf[offset+7];
+        bi->particles[i].acc.z = recv_buf[offset+8];
+    }
+    bi->id = recv_buf[bi->particles.size()*9];
+
+    MPI_Wait(reqs+1, MPI_STATUS_IGNORE);
 }
 
+void calculateOne(Buffer *b0){
+    int size = b0->particles.size();
+    for(int i=0; i < size; i++){
+        for(int j=0; j < size; j++){
+            if(i!=j){
+                for(int k=j; k<size; k++){
+                    if(i!=k && j!= k){
+                        b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b0->particles[j], b0->particles[k]);
+                    }
+                }
+            }
+        }
+    }
+}
 
+void calculateTwo(Buffer *b0, Buffer *b1){
+    int size0 = b0->particles.size();
+    int size1 = b1->particles.size();
+    for(int i=0; i < size0; i++){
+        for(int j=0; j<size1; j++){
+            for(int k=j;k<size1; k++){
+                b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b1->particles[j], b1->particles[k]);
+            }
+        }
+    }
+}
+
+void calculateThree(Buffer *b0, Buffer *b1, Buffer *b2){
+    int size0 = b0->particles.size();
+    int size1 = b1->particles.size();
+    int size2 = b2->particles.size();
+    for(int i=0; i<size0; i++){
+        for(int j=0; j < size1; j++){
+            for(int k=0; k<size2; k++){
+                b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b1->particles[j], b2->particles[k]);
+            }
+        }
+    }
+}
 
 /**
  * Method to calculate interactions between particles in three buffers.
@@ -99,38 +193,83 @@ void shift_left(std::vector<double> *bi,int myRank, int numProcesses){
  * @param b2
  * @param myRank
  */
-void calculateBufs(std::vector<double>* b0, std::vector<double>* b1, std::vector<double>* b2, int myRank){
-    int size = b0->size();
-    int n0 = b0->at(0);
-    int n1 = b1->at(0);
-    int n2 = b2->at(0);
-    int num_buf0 = n0;
-    int num_buf1 = n1;
-    int num_buf2 = n2;
+void calculateBufs(Buffer *b0, Buffer *b1, Buffer* b2, int myRank){
+    int n0 = b0->id;
+    int n1 = b1->id;
+    int n2 = b2->id;
     myRank += 1;
     if(n0 == n1 && n0 == n2){
-        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        calculateOne(b0);
     } else if(n0 == n1) {
-        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
-        b2->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        calculateTwo(b0, b2);
+        calculateTwo(b2, b0);
+        // calculate n0 n2
+        // calculate n1 n2
+        // calculate n2 n0
     } else if (n0 == n2){
-        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
-        b1->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        calculateTwo(b0, b1);
+        calculateTwo(b1, b0);
+        // calculate n0 n1
+        // calculate n2 n1
+        // calculate n1 n0
     } else if (n1 == n2){
-        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
-        b1->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        calculateTwo(b0, b1);
+        calculateTwo(b1, b0);
+        // calculate n0 n1
+        // calculate n1 n0
+        // calculate n2 n0
     } else {
-        b0->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
-        b1->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
-        b2->push_back(myRank*1000 + n0*100 + n1 * 10 + n2);
+        calculateThree(b0, b1, b2);
+        // calculate n0 n1 n2
+        // calculate n1 n0 n2
+        // calculate n2 n0 n1
     }
-
-    counter++;
-
-    stream << num_buf0 << " " << num_buf1 << " " << num_buf2 << "\n";
 }
 
+void iterate(Buffer ** buffs, int myProcessNo, int numProcesses){
+    int buff_i = 0;
+    Buffer *b0 = buffs[0];
+    Buffer *b1 = buffs[1];
+    Buffer *b2 = buffs[2];
 
+    int p = numProcesses;
+
+    for(int s=p-3; s > 0; s -= 3){
+//        LOG2("s=", s, myProcessNo);
+
+        for(int i=0; i < s; i++){
+//            LOG2("i=", i, myProcessNo);
+
+            if(i > 0 || s!=p-3){
+                shift_right(buffs[buff_i], myProcessNo, numProcesses);
+            } else {
+                calculateBufs(b1,b1,b1, myProcessNo);
+                calculateBufs(b1,b1,b2, myProcessNo);
+                calculateBufs(b0,b0,b2, myProcessNo);
+            }
+            if(s == (p-3)){
+                calculateBufs(b0,b1,b1, myProcessNo);
+            }
+
+            calculateBufs(b0,b1,b2, myProcessNo);
+        }
+        buff_i = (buff_i + 1) % 3;
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if( (p%3) == 0){
+//        LOG("EXTRA", 0)
+        buff_i = buff_i > 0 ? buff_i - 1 : 2;
+        shift_right(buffs[buff_i], myProcessNo, numProcesses);
+
+        if((myProcessNo)%(p/3) == 0){
+            calculateBufs(b0,b1,b2, myProcessNo);
+        }
+
+    }
+    //TODO aggregate
+}
 
 
 
@@ -148,62 +287,23 @@ int main(int argc, char * argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &numProcesses);
 
     //generate buff
-
-    std::vector<double> b0;
-    std::vector<double> b1;
-    std::vector<double> b2;
-    int offset = myProcessNo;
-    b0.push_back((double) offset);
-    b1.push_back((double) offset);
-    b2.push_back((double) offset);
-
+    std::vector<Particle> par;
+    Buffer b0(par, myProcessNo);
+    Buffer b1(par, myProcessNo);
+    Buffer b2(par, myProcessNo);
 
     shift_right(&b0, myProcessNo, numProcesses);
     shift_left(&b2, myProcessNo, numProcesses);
 
 
-    std::vector<double>* buffs[3];
+    Buffer* buffs[3];
     buffs[0] = &b0;
     buffs[1] = &b1;
     buffs[2] = &b2;
-    int buff_i = 0;
 
-    int p = numProcesses;
 
-    for(int s=p-3; s > 0; s -= 3){
-//        LOG2("s=", s, myProcessNo);
+    iterate(buffs, myProcessNo, numProcesses);
 
-        for(int i=0; i < s; i++){
-//            LOG2("i=", i, myProcessNo);
-
-            if(i > 0 || s!=p-3){
-                shift_right(buffs[buff_i], myProcessNo, numProcesses);
-            } else {
-                calculateBufs(&b1,&b1,&b1, myProcessNo);
-                calculateBufs(&b1,&b1,&b2, myProcessNo);
-                calculateBufs(&b0,&b0,&b2, myProcessNo);
-            }
-            if(s == (p-3)){
-                calculateBufs(&b0,&b1,&b1, myProcessNo);
-            }
-
-            calculateBufs(&b0,&b1,&b2, myProcessNo);
-        }
-        buff_i = (buff_i + 1) % 3;
-    }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if( (p%3) == 0){
-//        LOG("EXTRA", 0)
-        buff_i = buff_i > 0 ? buff_i - 1 : 2;
-        shift_right(buffs[buff_i], myProcessNo, numProcesses);
-
-        if((myProcessNo)%(p/3) == 0){
-            calculateBufs(&b0,&b1,&b2, myProcessNo);
-        }
-
-    }
 
     for(int i=0; i<numProcesses; i++){
         MPI_Barrier(MPI_COMM_WORLD);
@@ -212,23 +312,6 @@ int main(int argc, char * argv[])
             std::cout << stream.str() ; //<< "\n";
         }
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << myProcessNo << ":b0{" << b0[0] ;
-    for(int i=1; i<b0.size(); i++){
-        std::cout << "," << b0[i];
-    }
-    std::cout << "} ";
-    std::cout << ":b1{" << b1[0] ;
-    for(int i=1; i<b1.size(); i++){
-        std::cout << "," << b1[i];
-    }
-    std::cout << "} ";
-    std::cout << myProcessNo << ":b2{" << b2[0] ;
-    for(int i=1; i<b2.size(); i++){
-        std::cout << "," << b2[i];
-    }
-    std::cout << "}\n";
 
     MPI_Finalize();
 
