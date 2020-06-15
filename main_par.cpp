@@ -14,6 +14,7 @@
 #include <vector>
 #include <sstream>
 #include <zconf.h>
+#include <fstream>
 #include "Particle.h"
 #include "Utils.h"
 
@@ -37,7 +38,7 @@ Buffer::Buffer(std::vector<Particle> particles, double id) {
 }
 
 
-std::stringstream stream;
+//std::stringstream stream;
 
 int numParticles = 0;
 int numProcesses = 0;
@@ -503,19 +504,53 @@ void updateAccFirst(Buffer * myBuffer, int myProcessNo){
     }
 }
 
-void printBuff(Buffer *b){
-    stream << "{" ;
-    for(int i=0; i<getBufSizeOfProcess(b->id); i++){
-        stream << "{" << b->particles[i].pos.toString() << " "
-        << b->particles[i].vel.toString() << " "
-        << b->particles[i].acc.toString() << "}";
+void printToFile(Buffer * buff, int myRank, int iter, std::string filename){
+    std::ofstream outputFile;
+    filename += "_";
+    filename += std::to_string(iter);
+    filename += ".txt";
+    for(int i=0; i < numProcesses; i++){
+        MPI_Barrier(MPI_COMM_WORLD);
+        if(myRank == i){
+
+            if(myRank == 0){
+                outputFile.open(filename);
+            } else {
+                outputFile.open(filename, std::ios_base::app);
+            }
+
+            for(Particle p : buff->particles){
+                outputFile << p.pos.toString() << " " << p.vel.toString() << "\n";
+            }
+
+            outputFile.close();
+        }
     }
-    stream << "}";
 }
+
+//void printBuff(Buffer *b){
+//    stream << "{" ;
+//    for(int i=0; i<getBufSizeOfProcess(b->id); i++){
+//        stream << "{" << b->particles[i].pos.toString() << " "
+//        << b->particles[i].vel.toString() << " "
+//        << b->particles[i].acc.toString() << "}";
+//    }
+//    stream << "}";
+//}
 
 int main(int argc, char * argv[])
 {
+    if(argc != 5 && argc != 6){
+        std::cout << "wrong args \n";
+        return 1;
+    }
+
+    bool verbose = argc == 6;
+
     int myProcessNo;
+
+    int n = std::stoi(argv[3]);
+    volatile double dt = std::stod(argv[4]);
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myProcessNo);
@@ -600,31 +635,34 @@ int main(int argc, char * argv[])
         }
     }
 
-    double dt = 1;
     par.resize(getMaxBufSize());
     auto * myBuff = new Buffer(par, myProcessNo);
-    int n = 5;
-    stream << "Before: myBuff[" << myBuff->id << "]";
-    printBuff(myBuff);
-    stream << "\n";
+//    stream << "Before: myBuff[" << myBuff->id << "]";
+//    printBuff(myBuff);
+//    stream << "\n";
 
     updateAccFirst(myBuff, myProcessNo);
     for(int i=0; i < n; i++){
         update(myBuff, myProcessNo, dt);
-    }
 
-
-    stream << "After: myBuff[" << myBuff->id << "]";
-    printBuff(myBuff);
-    stream << "\n";
-
-    for(int i=0; i<numProcesses; i++){
-        MPI_Barrier(MPI_COMM_WORLD);
-        if(myProcessNo == i){
-            std::cout << "PROC-" << i << " LOG\n\n";
-            std::cout << stream.str() << "\n";
+        if(verbose && i < n-1){
+            printToFile(myBuff, myProcessNo, i+1,argv[2]);
         }
     }
+    printToFile(myBuff, myProcessNo, n, argv[2]);
+
+
+//    stream << "After: myBuff[" << myBuff->id << "]";
+//    printBuff(myBuff);
+//    stream << "\n";
+
+//    for(int i=0; i<numProcesses; i++){
+//        MPI_Barrier(MPI_COMM_WORLD);
+//        if(myProcessNo == i){
+//            std::cout << "PROC-" << i << " LOG\n\n";
+//            std::cout << stream.str() << "\n";
+//        }
+//    }
 
 
     MPI_Finalize();
