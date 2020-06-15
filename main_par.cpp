@@ -539,7 +539,7 @@ int main(int argc, char * argv[])
 
     std::vector<Particle> updated;
     updated = list;
-    double dt = 0.5;
+    double dt = 1;
 
 
     for(int i=0; i<list.size(); i++){
@@ -559,14 +559,15 @@ int main(int argc, char * argv[])
     par.reserve(getMaxBufSize());
     par.push_back(list[myProcessNo]);
     auto * myBuff = new Buffer(par, myProcessNo);
-
+    int n = 5;
     stream << "Before: myBuff[" << myBuff->id << "]";
     printBuff(myBuff);
     stream << "\n";
 
     updateAccFirst(myBuff, myProcessNo);
-
-    update(myBuff, myProcessNo, dt);
+    for(int i=0; i < n; i++){
+        update(myBuff, myProcessNo, dt);
+    }
 
 
     stream << "After: myBuff[" << myBuff->id << "]";
