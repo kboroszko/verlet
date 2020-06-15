@@ -117,7 +117,7 @@ void shift_right(Buffer *bi,int myRank){
     }
 
 
-    stream << myRank << ": sending " << bi->id << " to " << (myRank + 1)%numProcesses << "\n";
+//    stream << myRank << ": sending " << bi->id << " to " << (myRank + 1)%numProcesses << "\n";
     auto reqs = new MPI_Request[2];
     int maxSize = getMaxBufSize();
     auto * send_buf = new double[maxSize*9 + 1];
@@ -218,7 +218,7 @@ void calculateOne(Buffer *b0){
             if(i!=j){
                 for(int k=j; k<size; k++){
                     if(i!=k && j!= k){
-                        stream << "calc(" << b0->id << ")= " << i << "," << j << "," << k << "\n";
+//                        stream << "calc(" << b0->id << ")= " << i << "," << j << "," << k << "\n";
                         b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b0->particles[j], b0->particles[k]);
                     }
                 }
@@ -239,7 +239,7 @@ void calculateTwo(Buffer *b0, Buffer *b1){
     for(int i=0; i < size0; i++){
         for(int j=0; j<size1; j++){
             for(int k=j+1;k<size1; k++){
-                stream << "calc(" << b0->id << "," << b1->id <<")= " << i << "," << j << "," << k << "\n";
+//                stream << "calc(" << b0->id << "," << b1->id <<")= " << i << "," << j << "," << k << "\n";
                 b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b1->particles[j], b1->particles[k]);
             }
         }
@@ -261,7 +261,7 @@ void calculateThree(Buffer *b0, Buffer *b1, Buffer *b2){
     for(int i=0; i<size0; i++){
         for(int j=0; j < size1; j++){
             for(int k=0; k<size2; k++){
-                stream << "calc(" << b0->id << "," << b1->id<< "," << b2->id <<")= " << i << "," << j << "," << k << "\n";
+//                stream << "calc(" << b0->id << "," << b1->id<< "," << b2->id <<")= " << i << "," << j << "," << k << "\n";
                 b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b1->particles[j], b2->particles[k]);
             }
         }
@@ -280,7 +280,7 @@ void calculateBufs(Buffer *b0, Buffer *b1, Buffer* b2){
     int n0 = b0->id;
     int n1 = b1->id;
     int n2 = b2->id;
-    stream << "calculate " << n0 << " "<< n1 << " " << n2 << '\n';
+//    stream << "calculate " << n0 << " "<< n1 << " " << n2 << '\n';
     if(n0 == n1 && n0 == n2){
         calculateOne(b0);
     } else if(n0 == n1) {
@@ -320,10 +320,10 @@ void iterate(Buffer ** buffs, int myProcessNo, int numProcesses){
     int p = numProcesses;
 
     for(int s=p-3; s > 0; s -= 3){
-        LOG2("s=", s, myProcessNo);
+//        LOG2("s=", s, myProcessNo);
 
         for(int i=0; i < s; i++){
-            LOG2("i=", i, myProcessNo);
+//            LOG2("i=", i, myProcessNo);
 
             if(i > 0 || s!=p-3){
                 shift_right(buffs[buff_i], myProcessNo);
@@ -356,7 +356,7 @@ void iterate(Buffer ** buffs, int myProcessNo, int numProcesses){
 
 }
 
-void aggregate(Buffer ** buffs, int myProcessNo){
+double * aggregate(Buffer ** buffs, int myProcessNo){
 
     Buffer *b0 = buffs[0];
     Buffer *b1 = buffs[1];
@@ -386,7 +386,7 @@ void aggregate(Buffer ** buffs, int myProcessNo){
     ordered[1] = b1;
     ordered[2] = b2;
 
-    double aggr_acc[3*getBufSizeOfProcess(myProcessNo)];
+    auto * aggr_acc = new double [3*getBufSizeOfProcess(myProcessNo)];
 
     for(int c=0; c<numProcesses; c++){
         double send_acc[3 * getBufSizeOfProcess(c)];
@@ -413,23 +413,84 @@ void aggregate(Buffer ** buffs, int myProcessNo){
         }
 
         if(myProcessNo == c){
-            std::cout << myProcessNo << " reduce to self\n";
-
             MPI_Reduce(send_acc, aggr_acc, 3 * getBufSizeOfProcess(c),
                        MPI_DOUBLE, MPI_SUM, myProcessNo,
                        MPI_COMM_WORLD);
-
-            std::cout << myProcessNo << " reduce done\n";
         } else {
-            std::cout << myProcessNo << " reduce to " << c << '\n';
             MPI_Reduce(send_acc, nullptr, 3 * getBufSizeOfProcess(c),
                        MPI_DOUBLE, MPI_SUM, c,
                        MPI_COMM_WORLD);
         }
     }
 
-    Buffer * bi = buffs[1];
-    std::cout << myProcessNo << ":CHAANGING b1[" << buffs[1]->id << "] to " << myProcessNo << "\n";
+    return aggr_acc;
+}
+
+void update(Buffer * myBuffer, int myProcessNo, double dt){
+    std::vector<Particle> oldList;
+    oldList = myBuffer->particles;
+    int size = getBufSizeOfProcess(myProcessNo);
+    for(int i=0; i < size; i++){
+        myBuffer->particles[i].pos = myBuffer->particles[i].pos + myBuffer->particles[i].vel * dt + myBuffer->particles[i].acc * (dt*dt*0.5);
+        myBuffer->particles[i].acc = Vector();
+    }
+
+    Buffer b0(myBuffer->particles, myProcessNo);
+    b0.particles.reserve(getMaxBufSize());
+    Buffer b1(myBuffer->particles, myProcessNo);
+    b1.particles.reserve(getMaxBufSize());
+    Buffer b2(myBuffer->particles, myProcessNo);
+    b2.particles.reserve(getMaxBufSize());
+
+    shift_right(&b0, myProcessNo);
+    shift_left(&b2, myProcessNo);
+
+    Buffer* buffs[3];
+    buffs[0] = &b0;
+    buffs[1] = &b1;
+    buffs[2] = &b2;
+
+    iterate(buffs, myProcessNo, numProcesses);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    double * aggr_acc = aggregate(buffs, myProcessNo);
+
+    Buffer * bi = myBuffer;
+
+    for(int i=0; i<size; i++){
+        int offset = i*3;
+        bi->id = myProcessNo;
+        bi->particles.at(i).vel.x = oldList.at(i).vel.x +(aggr_acc[offset] + oldList.at(i).acc.x)*(dt*0.5);
+        bi->particles.at(i).vel.y = oldList.at(i).vel.y +(aggr_acc[offset + 1] + oldList.at(i).acc.y)*(dt*0.5);
+        bi->particles.at(i).vel.z = oldList.at(i).vel.z +(aggr_acc[offset + 2]+ oldList.at(i).acc.z)*(dt*0.5);
+        bi->particles.at(i).acc.x = aggr_acc[offset];
+        bi->particles.at(i).acc.y = aggr_acc[offset + 1];
+        bi->particles.at(i).acc.z = aggr_acc[offset + 2];
+    }
+}
+
+void updateAccFirst(Buffer * myBuffer, int myProcessNo){
+    Buffer b0(myBuffer->particles, myProcessNo);
+    b0.particles.reserve(getMaxBufSize());
+    Buffer b1(myBuffer->particles, myProcessNo);
+    b1.particles.reserve(getMaxBufSize());
+    Buffer b2(myBuffer->particles, myProcessNo);
+    b2.particles.reserve(getMaxBufSize());
+
+    shift_right(&b0, myProcessNo);
+    shift_left(&b2, myProcessNo);
+
+    Buffer* buffs[3];
+    buffs[0] = &b0;
+    buffs[1] = &b1;
+    buffs[2] = &b2;
+
+    iterate(buffs, myProcessNo, numProcesses);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    double * aggr_acc = aggregate(buffs, myProcessNo);
+
+    Buffer * bi = myBuffer;
 
     for(int i=0; i<getBufSizeOfProcess(myProcessNo); i++){
         int offset = i*3;
@@ -440,9 +501,7 @@ void aggregate(Buffer ** buffs, int myProcessNo){
     }
 }
 
-
 void printBuff(Buffer *b){
-
     stream << "{" ;
     for(int i=0; i<getBufSizeOfProcess(b->id); i++){
         stream << "{" << b->particles[i].pos.toString() << " "
@@ -469,7 +528,7 @@ int main(int argc, char * argv[])
         return 1;
     }
 
-//    if(myProcessNo == 3){
+//    if(myProcessNo == 0){
 //        int xxx = 0;
 //        while(xxx == 0){
 //            sleep(3);
@@ -477,12 +536,6 @@ int main(int argc, char * argv[])
 //    }
 
     numParticles = list.size();
-
-            stream << myProcessNo << ":list[i]" << list[myProcessNo].pos.toString()
-    << " "<< list[myProcessNo].vel.toString()
-    << " "<< list[myProcessNo].acc.toString()
-    << "\n";
-
 
     std::vector<Particle> updated;
     updated = list;
@@ -502,85 +555,22 @@ int main(int argc, char * argv[])
         }
     }
 
-//    list = updated;
-
-    stream << myProcessNo << ":updated" << list.size() << "\n";
-
-    stream << myProcessNo << ":updated[i]" << updated[myProcessNo].pos.toString()
-    << " "<< updated[myProcessNo].vel.toString()
-    << " "<< updated[myProcessNo].acc.toString()
-    << "\n";
-
-    //generate buff
     std::vector<Particle> par;
-    for(int i=getFirstParticleIndexOfProcess(myProcessNo); i < getFirstParticleIndexOfProcess(myProcessNo+1); i++){
-        par.push_back(list[i]);
-    }
-    Buffer b0(par, myProcessNo);
-    b0.particles.reserve(getMaxBufSize());
-    Buffer b1(par, myProcessNo);
-    b1.particles.reserve(getMaxBufSize());
-    Buffer b2(par, myProcessNo);
-    b2.particles.reserve(getMaxBufSize());
+    par.reserve(getMaxBufSize());
+    par.push_back(list[myProcessNo]);
+    auto * myBuff = new Buffer(par, myProcessNo);
 
-
-    stream << myProcessNo << ":" << b0.particles.size()<< b1.particles.size() << b2.particles.size() << "\n";
-
-
-    stream << "b0[" << b0.id << "]";
-    printBuff(&b0);
-    stream << "\n";
-    stream << "b1[" << b1.id << "]";
-    printBuff(&b1);
-    stream << "\n";
-    stream << "b2[" << b2.id << "]";
-    printBuff(&b2);
+    stream << "Before: myBuff[" << myBuff->id << "]";
+    printBuff(myBuff);
     stream << "\n";
 
-    stream << "SHIFT\n";
-    shift_right(&b0, myProcessNo);
-    shift_left(&b2, myProcessNo);
+    updateAccFirst(myBuff, myProcessNo);
+
+    update(myBuff, myProcessNo, dt);
 
 
-    Buffer* buffs[3];
-    buffs[0] = &b0;
-    buffs[1] = &b1;
-    buffs[2] = &b2;
-
-    stream << "b0[" << b0.id << "]";
-    printBuff(&b0);
-    stream << "\n";
-    stream << "b1[" << b1.id << "]";
-    printBuff(&b1);
-    stream << "\n";
-    stream << "b2[" << b2.id << "]";
-    printBuff(&b2);
-    stream << "\n";
-
-    stream << "ITER\n";
-
-    iterate(buffs, myProcessNo, numProcesses);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-
-
-    stream << "b0[" << b0.id << "]";
-    printBuff(&b0);
-    stream << "\nb1[" << b1.id << "]";
-    printBuff(&b1);
-    stream << "\nb2[" << b2.id << "]";
-    printBuff(&b2);
-    stream << "\n";
-
-    aggregate(buffs, myProcessNo);
-
-    stream << "b0[" << b0.id << "]";
-    printBuff(&b0);
-    stream << "\nb1[" << b1.id << "]";
-    printBuff(&b1);
-    stream << "\nb2[" << b2.id << "]";
-    printBuff(&b2);
+    stream << "After: myBuff[" << myBuff->id << "]";
+    printBuff(myBuff);
     stream << "\n";
 
     for(int i=0; i<numProcesses; i++){
