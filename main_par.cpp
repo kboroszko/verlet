@@ -149,6 +149,10 @@ void shift_left(Buffer *bi,int myRank, int numProcesses){
 
 }
 
+/**
+ * calculate interactions between particles in buff b0
+ * @param b0
+ */
 void calculateOne(Buffer *b0){
     int size = b0->particles.size();
     for(int i=0; i < size; i++){
@@ -165,6 +169,12 @@ void calculateOne(Buffer *b0){
     }
 }
 
+/**
+ * Calculate interactions between particles in buffers b0 and b1.
+ * Note that only particles in buffer b0 will have updated acc vector.
+ * @param b0
+ * @param b1
+ */
 void calculateTwo(Buffer *b0, Buffer *b1){
     int size0 = b0->particles.size();
     int size1 = b1->particles.size();
@@ -178,18 +188,17 @@ void calculateTwo(Buffer *b0, Buffer *b1){
     }
 }
 
+/**
+ * Calculate interactions between particles in buffers b0 and b1.
+ * Note that only particles in buffer b0 will have updated acc vector.
+ * @param b0
+ * @param b1
+ * @param b2
+ */
 void calculateThree(Buffer *b0, Buffer *b1, Buffer *b2){
     int size0 = b0->particles.size();
     int size1 = b1->particles.size();
     int size2 = b2->particles.size();
-
-    if(b0->id == 0 && b1->id == 3 && b2->id == 2){
-        stream << "calculateThree :\n";
-        stream << "b0[" << b0->id << "]{" << b0->particles[0].pos.toString() << " " << b0->particles[0].vel.toString() << " " << b0->particles[0].acc.toString() << "}\n";
-        stream << "b1[" << b1->id << "]{" << b1->particles[0].pos.toString() << " " << b1->particles[0].vel.toString() << " " << b1->particles[0].acc.toString() << "}\n";
-        stream << "b2[" << b2->id << "]{" << b2->particles[0].pos.toString() << " " << b2->particles[0].vel.toString() << " " << b2->particles[0].acc.toString()<< "}\n";
-
-    }
 
     for(int i=0; i<size0; i++){
         for(int j=0; j < size1; j++){
@@ -286,7 +295,6 @@ void iterate(Buffer ** buffs, int myProcessNo, int numProcesses){
         }
 
     }
-    //TODO aggregate
 }
 
 
