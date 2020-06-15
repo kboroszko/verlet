@@ -19,3 +19,4 @@ add_executable(verlet_par
 include_directories(SYSTEM ${MPI_INCLUDE_PATH})
 
 target_link_libraries(verlet_par ${MPI_CXX_LIBRARIES})
+set_target_properties(verlet_par PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS} -g ")

@@ -389,7 +389,7 @@ double * aggregate(Buffer ** buffs, int myProcessNo){
     auto * aggr_acc = new double [3*getBufSizeOfProcess(myProcessNo)];
 
     for(int c=0; c<numProcesses; c++){
-        double send_acc[3 * getBufSizeOfProcess(c)];
+        double send_acc[3 * getMaxBufSize()];
 
         if(c == b0->id || c == b1->id || c == b2->id){
             Buffer* bi;
@@ -400,6 +400,7 @@ double * aggregate(Buffer ** buffs, int myProcessNo){
             } else {
                 bi = b2;
             }
+//            bi->particles.resize(getMaxBufSize());
             for(int i=0; i<getBufSizeOfProcess(c); i++){
                 int offset = i*3;
                 send_acc[offset] = bi->particles.at(i).acc.x;
@@ -421,6 +422,7 @@ double * aggregate(Buffer ** buffs, int myProcessNo){
                        MPI_DOUBLE, MPI_SUM, c,
                        MPI_COMM_WORLD);
         }
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     return aggr_acc;
@@ -436,11 +438,11 @@ void update(Buffer * myBuffer, int myProcessNo, double dt){
     }
 
     Buffer b0(myBuffer->particles, myProcessNo);
-    b0.particles.reserve(getMaxBufSize());
+    b0.particles.resize(getMaxBufSize());
     Buffer b1(myBuffer->particles, myProcessNo);
-    b1.particles.reserve(getMaxBufSize());
+    b1.particles.resize(getMaxBufSize());
     Buffer b2(myBuffer->particles, myProcessNo);
-    b2.particles.reserve(getMaxBufSize());
+    b2.particles.resize(getMaxBufSize());
 
     shift_right(&b0, myProcessNo);
     shift_left(&b2, myProcessNo);
@@ -471,11 +473,11 @@ void update(Buffer * myBuffer, int myProcessNo, double dt){
 
 void updateAccFirst(Buffer * myBuffer, int myProcessNo){
     Buffer b0(myBuffer->particles, myProcessNo);
-    b0.particles.reserve(getMaxBufSize());
+    b0.particles.resize(getMaxBufSize());
     Buffer b1(myBuffer->particles, myProcessNo);
-    b1.particles.reserve(getMaxBufSize());
+    b1.particles.resize(getMaxBufSize());
     Buffer b2(myBuffer->particles, myProcessNo);
-    b2.particles.reserve(getMaxBufSize());
+    b2.particles.resize(getMaxBufSize());
 
     shift_right(&b0, myProcessNo);
     shift_left(&b2, myProcessNo);
@@ -519,45 +521,87 @@ int main(int argc, char * argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &myProcessNo);
     MPI_Comm_size(MPI_COMM_WORLD, &numProcesses);
 
-    auto list = readFile("test.txt");
-    if(list.size() == 0){
-
-        std::cout << myProcessNo << ":error\n" ;
-
-        MPI_Finalize();
-        return 1;
-    }
-
 //    if(myProcessNo == 0){
-//        int xxx = 0;
-//        while(xxx == 0){
-//            sleep(3);
-//        }
+//        int xx = 0;
+//        while(xx == 0)
+//            sleep(1);
 //    }
 
-    numParticles = list.size();
+    std::vector<Particle> list;
 
-    std::vector<Particle> updated;
-    updated = list;
-    double dt = 1;
+    if(myProcessNo == 0){
+        list = readFile("test.txt");
+        if(list.empty()){
+            throw std::runtime_error("FILE EMPTY");
+        }
+
+        numParticles = list.size();
+    }
 
 
-    for(int i=0; i<list.size(); i++){
-        updated[i].acc = Vector();
-        for(int j=0; j<list.size(); j++){
-            if( i != j){
-                for(int k=j; k<list.size(); k++){
-                    if(i != k && j!=k){
-                        updated[i].acc = updated[i].acc - dV(list[i], list[j], list[k]);
-                    }
-                }
+    MPI_Bcast(
+            &numParticles,
+            1,
+            MPI_INT,
+            0,
+            MPI_COMM_WORLD);
+
+    int maxSize = getMaxBufSize();
+
+
+    std::vector<Particle> par;
+
+    if(myProcessNo == 0){
+
+        for(int i=0; i<getBufSizeOfProcess(myProcessNo); i++){
+            par.push_back(list[i]);
+        }
+
+        for(int c=1; c<numProcesses; c++){
+            auto * send_buf = new double[maxSize*6];
+
+            for(int i=getFirstParticleIndexOfProcess(c); i<getFirstParticleIndexOfProcess(c+1); i++){
+                int offset = (i-getFirstParticleIndexOfProcess(c))*6;
+                send_buf[offset] = list.at(i).pos.x;
+                send_buf[offset+1] = list.at(i).pos.y;
+                send_buf[offset+2] = list.at(i).pos.z;
+                send_buf[offset+3] = list.at(i).vel.x;
+                send_buf[offset+4] = list.at(i).vel.y;
+                send_buf[offset+5] = list.at(i).vel.z;
             }
+
+            MPI_Send(
+                    send_buf,
+                    maxSize*6,
+                    MPI_DOUBLE,
+                    c,
+                    0,
+                    MPI_COMM_WORLD);
+        }
+    } else {
+        //recieve data from proc 0
+        auto * recv_buf = new double[maxSize*6];
+
+        MPI_Recv(
+                recv_buf,
+                maxSize*6,
+                MPI_DOUBLE,
+                0,
+                0,
+                MPI_COMM_WORLD,
+                MPI_STATUS_IGNORE);
+
+
+        for(int i=0; i<getBufSizeOfProcess(myProcessNo); i++){
+            int offset = i*6;
+            Vector pos = Vector(recv_buf[offset], recv_buf[offset+1], recv_buf[offset+2]);
+            Vector vel = Vector(recv_buf[offset+3], recv_buf[offset+4], recv_buf[offset+5]);
+            par.emplace_back(pos, vel);
         }
     }
 
-    std::vector<Particle> par;
-    par.reserve(getMaxBufSize());
-    par.push_back(list[myProcessNo]);
+    double dt = 1;
+    par.resize(getMaxBufSize());
     auto * myBuff = new Buffer(par, myProcessNo);
     int n = 5;
     stream << "Before: myBuff[" << myBuff->id << "]";

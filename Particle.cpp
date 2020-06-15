@@ -57,3 +57,9 @@ Particle::Particle(Vector pos, Vector vel) {
     this->vel = vel;
     this->acc = Vector();
 }
+
+Particle::Particle() {
+    this->pos = Vector();
+    this->vel = Vector();
+    this->acc = Vector();
+}

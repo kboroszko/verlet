@@ -26,6 +26,7 @@ public:
 class Particle{
 public:
     Particle(Vector pos, Vector vel);
+    Particle();
     Vector pos;
     Vector vel;
     Vector acc;
