@@ -54,7 +54,9 @@ int main(int argc, char *argv[]) {
             if( i != j){
                 for(int k=j; k<list.size(); k++){
                     if(i != k && j!=k){
-                        updated[i].acc = updated[i].acc - dV(list[i], list[j], list[k]);
+                        Vector tmp = dV(list[i], list[j], list[k]);
+                        Vector tmp2 = dV(list[i], list[k], list[j]);
+                        updated[i].acc = updated[i].acc - tmp;
                     }
                 }
             }
