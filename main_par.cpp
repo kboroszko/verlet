@@ -18,7 +18,7 @@
 #include "Particle.h"
 #include "Utils.h"
 
-#define LOG(msg, rank) {stream<<msg<<"\n";}
+#define LOG(msg, rank) {std::cout<<msg<<"\n";}
 #define LOG2(msg1, msg2, rank) {stream<<msg1 << msg2 <<"\n";}
 #define LOG3(msg1, msg2, msg3, rank) {stream<<msg1 << msg2 << msg3<<"\n";}
 
@@ -565,7 +565,7 @@ int main(int argc, char * argv[])
     std::vector<Particle> list;
 
     if(myProcessNo == 0){
-        list = readFile("test.txt");
+        list = readFile(argv[1]);
         if(list.empty()){
             throw std::runtime_error("FILE EMPTY");
         }
@@ -640,6 +640,8 @@ int main(int argc, char * argv[])
 //    stream << "Before: myBuff[" << myBuff->id << "]";
 //    printBuff(myBuff);
 //    stream << "\n";
+
+//    LOG("OK", myProcessNo)
 
     updateAccFirst(myBuff, myProcessNo);
     for(int i=0; i < n; i++){
