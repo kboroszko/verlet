@@ -19,7 +19,9 @@
 #define LOG2(msg1, msg2, rank) {stream<<msg1 << msg2 <<"\n";}
 #define LOG3(msg1, msg2, msg3, rank) {stream<<msg1 << msg2 << msg3<<"\n";}
 
-
+/**
+ * Class to hold particles
+ */
 class Buffer{
 public:
     std::vector<Particle> particles;
@@ -36,6 +38,16 @@ Buffer::Buffer(std::vector<Particle> particles, double id) {
 std::stringstream stream;
 int counter=0;
 
+/**
+ * send data from buffFrom to neighbour and recieve from other neighbour buffTo
+ * @param myRank
+ * @param numProcesses
+ * @param buffFrom
+ * @param buffTo
+ * @param buffSize
+ * @param clockwise direction of communication
+ * @param reqs
+ */
 void sendRecv(int myRank, int numProcesses, double* buffFrom, double* buffTo, int buffSize, bool clockwise, MPI_Request* reqs){
     int rankFrom, rankTo;
     if(clockwise){
@@ -50,6 +62,12 @@ void sendRecv(int myRank, int numProcesses, double* buffFrom, double* buffTo, in
     MPI_Irecv(buffTo, buffSize, MPI_DOUBLE, rankFrom, clockwise, MPI_COMM_WORLD, reqs + 1);
 }
 
+/**
+ * send buffer to the neighbour on the right
+ * @param bi buffer that's content is to be replaced
+ * @param myRank
+ * @param numProcesses
+ */
 void shift_right(std::vector<double> *bi,int myRank, int numProcesses){
     auto reqs = new MPI_Request[2];
     auto * send_buf = new double[bi->size()];
@@ -72,18 +90,15 @@ void shift_left(std::vector<double> *bi,int myRank, int numProcesses){
 }
 
 
-void calculate(std::vector<double>** buffs, int myRank, int numProc){
-    int size = (*buffs)[0].size();
-    int n0 = (*buffs)[0].at(0);
-    int n1 = (*buffs)[1].at(0);
-    int n2 = (*buffs)[2].at(0);
-    int num_buf0 = n0/size;
-    int num_buf1 = n1/size;
-    int num_buf2 = n2/size;
 
-    std::cout << num_buf0 << " " << num_buf1 << " " << num_buf2 << "\n";
-}
-
+/**
+ * Method to calculate interactions between particles in three buffers.
+ * After this method all particles should have calculated interactions between each other.
+ * @param b0
+ * @param b1
+ * @param b2
+ * @param myRank
+ */
 void calculateBufs(std::vector<double>* b0, std::vector<double>* b1, std::vector<double>* b2, int myRank){
     int size = b0->size();
     int n0 = b0->at(0);
