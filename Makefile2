@@ -1,0 +1,31 @@
+#
+# A template for the 2016 MPI lab at the University of Warsaw.
+# Copyright (C) 2016, Konrad Iwanicki.
+#
+CC          := CC
+CFLAGS      := -O3 -c -Wall
+LFLAGS      := -O3
+ALL         := \
+	scatter-gather-max.exe \
+	ring-nonblocking.exe \
+	laplace-seq.exe \
+	laplace-par.exe
+
+all : $(ALL)
+
+
+verlet_par : main_par.o Particle.o Utils.o
+	$(CC) $(LFLAGS) -o $@ $< -lm
+
+Particle.o : Particle.cpp Particle.h
+	$(CC) $(CFLAGS) Particle.cpp -o Particle.o
+
+main_par.o : main_par.cpp main_par.h
+	$(CC) $(CFLAGS) main_par.cpp -o main_par.o
+
+Utils.o : Utils.cpp Utils.h
+	$(CC) $(CFLAGS) Utils.cpp -o Utils.o
+
+
+clean :
+	rm -f *.o *.out *.err $(ALL)
