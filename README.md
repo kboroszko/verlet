@@ -10,4 +10,10 @@ It generates the unique triplets following algorithm 3 from the paper.
 The program assumes your good will, which means that it is not very dilligent in 
 checking the validity of the input data and arguments. They just should be correct.
 
-The job for running it on okeanos is in file run.batch. The algorithm assumes that there is at least so many particles as there is processes.
+The job was run with the following command:
+
+```
+srun -v --nodes 2 --tasks-per-node 20 --account GC80-33 --time 00:05:00 verlet_par test_data.txt test_out 4 1
+```
+
+The algorithm assumes that there is at least so many particles as there is processes.

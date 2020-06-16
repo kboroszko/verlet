@@ -53,7 +53,7 @@ int getFirstParticleIndexOfProcess(int myRank) {
         return numParticles;
     }
     int rowsInEveryone = numParticles / numProcesses;
-    int rest = numParticles % rowsInEveryone;
+    int rest = numParticles - rowsInEveryone*numProcesses;
 
     if(rest == 0){
         return myRank * rowsInEveryone;
@@ -600,14 +600,15 @@ int main(int argc, char * argv[])
         for(int c=1; c<numProcesses; c++){
             auto * send_buf = new double[maxSize*6];
 
-            for(int i=getFirstParticleIndexOfProcess(c); i<getFirstParticleIndexOfProcess(c+1); i++){
-                int offset = (i-getFirstParticleIndexOfProcess(c))*6;
-                send_buf[offset] = list.at(i).pos.x;
-                send_buf[offset+1] = list.at(i).pos.y;
-                send_buf[offset+2] = list.at(i).pos.z;
-                send_buf[offset+3] = list.at(i).vel.x;
-                send_buf[offset+4] = list.at(i).vel.y;
-                send_buf[offset+5] = list.at(i).vel.z;
+            for(int i=0; i<getBufSizeOfProcess(c); i++){
+                int offset = i * 6;
+                int partIndex = getFirstParticleIndexOfProcess(c) + i;
+                send_buf[offset] = list.at(partIndex).pos.x;
+                send_buf[offset+1] = list.at(partIndex).pos.y;
+                send_buf[offset+2] = list.at(partIndex).pos.z;
+                send_buf[offset+3] = list.at(partIndex).vel.x;
+                send_buf[offset+4] = list.at(partIndex).vel.y;
+                send_buf[offset+5] = list.at(partIndex).vel.z;
             }
 
             MPI_Send(
@@ -617,6 +618,8 @@ int main(int argc, char * argv[])
                     c,
                     0,
                     MPI_COMM_WORLD);
+
+            delete[] (send_buf);
         }
     } else {
         //recieve data from proc 0
