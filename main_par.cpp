@@ -571,12 +571,13 @@ int main(int argc, char * argv[])
     if(myProcessNo == 0){
         list = readFile(argv[1]);
         if(list.empty()){
+            std::cout << "FILE EMPTY";
             throw std::runtime_error("FILE EMPTY");
         }
 
         numParticles = list.size();
     }
-
+    MPI_Barrier(MPI_COMM_WORLD);
     auto start = std::chrono::high_resolution_clock::now();
     MPI_Bcast(
             &numParticles,
