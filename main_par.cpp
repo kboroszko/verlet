@@ -15,8 +15,10 @@
 #include <sstream>
 #include <zconf.h>
 #include <fstream>
+#include <chrono>
 #include "Particle.h"
 #include "Utils.h"
+
 
 #define LOG(msg, rank) {std::cout<<msg<<"\n";}
 #define LOG2(msg1, msg2, rank) {stream<<msg1 << msg2 <<"\n";}
@@ -540,6 +542,8 @@ void printToFile(Buffer * buff, int myRank, int iter, std::string filename){
 
 int main(int argc, char * argv[])
 {
+    bool timeit = true;
+
     if(argc != 5 && argc != 6){
         std::cout << "wrong args \n";
         return 1;
@@ -573,7 +577,7 @@ int main(int argc, char * argv[])
         numParticles = list.size();
     }
 
-
+    auto start = std::chrono::high_resolution_clock::now();
     MPI_Bcast(
             &numParticles,
             1,
@@ -651,6 +655,16 @@ int main(int argc, char * argv[])
             printToFile(myBuff, myProcessNo, i+1,argv[2]);
         }
     }
+
+
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    if(timeit){
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        std::cout << "Time taken by function: "
+             << duration.count() << " microseconds" << std::endl;
+    }
+
     printToFile(myBuff, myProcessNo, n, argv[2]);
 
 
