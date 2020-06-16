@@ -5,11 +5,7 @@
 CC          := CC
 CFLAGS      := -O3 -c -Wall
 LFLAGS      := -O3
-ALL         := \
-	scatter-gather-max.exe \
-	ring-nonblocking.exe \
-	laplace-seq.exe \
-	laplace-par.exe
+ALL         := verlet_par
 
 all : $(ALL)
 
