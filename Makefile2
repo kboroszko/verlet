@@ -16,7 +16,7 @@ verlet_par : main_par.o Particle.o Utils.o
 Particle.o : Particle.cpp Particle.h
 	$(CC) $(CFLAGS) Particle.cpp -o Particle.o
 
-main_par.o : main_par.cpp main_par.h
+main_par.o : main_par.cpp
 	$(CC) $(CFLAGS) main_par.cpp -o main_par.o
 
 Utils.o : Utils.cpp Utils.h
