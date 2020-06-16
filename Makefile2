@@ -11,7 +11,7 @@ all : $(ALL)
 
 
 verlet_par : main_par.o Particle.o Utils.o
-	$(CC) $(LFLAGS) -o $@ $< -lm
+	$(CC) $(LFLAGS) -o main_par.o Particle.o Utils.o $< -lm
 
 Particle.o : Particle.cpp Particle.h
 	$(CC) $(CFLAGS) Particle.cpp -o Particle.o
