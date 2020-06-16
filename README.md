@@ -10,6 +10,9 @@ It generates the unique triplets following algorithm 3 from the paper.
 The program assumes your good will, which means that it is not very dilligent in 
 checking the validity of the input data and arguments. They just should be correct.
 
+**Note:**
+*Cmake was not working for me on okeanos for some reason, that is why I made a second makefile Makefile2 just in case.*
+
 The job was run with the following command:
 
 ```
@@ -24,6 +27,7 @@ s 1643292  micro sec
 p 75787062 micro sec
 max speedup 47%
 ```
+See results.txt for reference.
 
 Here are the results:
 
