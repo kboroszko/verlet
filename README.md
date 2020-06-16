@@ -25,7 +25,7 @@ The computed values for s and p for okeanos were:
 ```
 s 1643292  micro sec
 p 75787062 micro sec
-max speedup 47%
+max speedup 47 so about 98%
 ```
 See results.txt for reference.
 
