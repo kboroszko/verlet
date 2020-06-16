@@ -31,6 +31,6 @@ See results.txt for reference.
 
 Here are the results:
 
-[plot1](plots/fit.jpg?raw=true "Fitting data")
-[plot2](plots/strong.jpg?raw=true "Amdahl's law strong speedup")
-[plot3](plots/soft.jpg?raw=true "Gustafson's law, soft speedup")
+![plot1](plots/fit.png?raw=true "Fitting data")
+![plot2](plots/strong.png?raw=true "Amdahl's law strong speedup")
+![plot3](plots/soft.png?raw=true "Gustafson's law, soft speedup")
