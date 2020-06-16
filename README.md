@@ -13,7 +13,20 @@ checking the validity of the input data and arguments. They just should be corre
 The job was run with the following command:
 
 ```
-srun -v --nodes 2 --tasks-per-node 20 --account GC80-33 --time 00:05:00 verlet_par test_data.txt test_out 4 1
+srun -v --nodes 2 --tasks-per-node 24 --account GC80-33 --time 00:05:00 verlet_par test_data.txt test_out 4 1
 ```
 
 The algorithm assumes that there is at least so many particles as there is processes.
+
+The computed values for s and p for okeanos were:
+```
+s 1643292  micro sec
+p 75787062 micro sec
+max speedup 47%
+```
+
+Here are the results:
+
+[plot1](plots/fit.jpg?raw=true "Fitting data")
+[plot2](plots/strong.jpg?raw=true "Amdahl's law strong speedup")
+[plot3](plots/soft.jpg?raw=true "Gustafson's law, soft speedup")
