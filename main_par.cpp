@@ -40,7 +40,7 @@ Buffer::Buffer(std::vector<Particle> particles, double id) {
 }
 
 
-//std::stringstream stream;
+std::stringstream stream;
 
 int numParticles = 0;
 int numProcesses = 0;
@@ -221,7 +221,7 @@ void calculateOne(Buffer *b0){
             if(i!=j){
                 for(int k=j; k<size; k++){
                     if(i!=k && j!= k){
-//                        stream << "calc(" << b0->id << ")= " << i << "," << j << "," << k << "\n";
+                        stream << "calc(" << b0->id << ")= " << i << "," << j << "," << k << "\n";
                         b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b0->particles[j], b0->particles[k]);
                     }
                 }
@@ -236,14 +236,29 @@ void calculateOne(Buffer *b0){
  * @param b0
  * @param b1
  */
-void calculateTwo(Buffer *b0, Buffer *b1){
+void calculateTwoA(Buffer *b0, Buffer *b1){
     int size0 = getBufSizeOfProcess(b0->id);
     int size1 = getBufSizeOfProcess(b1->id);
     for(int i=0; i < size0; i++){
         for(int j=0; j<size1; j++){
             for(int k=j+1;k<size1; k++){
-//                stream << "calc(" << b0->id << "," << b1->id <<")= " << i << "," << j << "," << k << "\n";
+                stream << "calcA(" << b0->id << "," << b1->id <<")= " << i << "," << j << "," << k << "\n";
                 b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b1->particles[j], b1->particles[k]);
+            }
+        }
+    }
+}
+
+void calculateTwoB(Buffer *b0, Buffer *b1){
+    int size0 = getBufSizeOfProcess(b0->id);
+    int size1 = getBufSizeOfProcess(b1->id);
+    for(int i=0; i < size1; i++){
+        for(int j=0; j<size0; j++){
+            for(int k=0;k<size0; k++){
+                if(k != j){
+                    stream << "calcB(" << b0->id << "," << b1->id <<")= " << j << "," << k << "," << i << "\n";
+                    b0->particles[j].acc = b0->particles[j].acc - dV(b0->particles[j], b0->particles[k], b1->particles[i]);
+                }
             }
         }
     }
@@ -263,13 +278,14 @@ void calculateThree(Buffer *b0, Buffer *b1, Buffer *b2){
 
     for(int i=0; i<size0; i++){
         for(int j=0; j < size1; j++){
-            for(int k=0; k<size2; k++){
-//                stream << "calc(" << b0->id << "," << b1->id<< "," << b2->id <<")= " << i << "," << j << "," << k << "\n";
+            for(int k=j+1; k<size2; k++){
+                stream << "calc(" << b0->id << "," << b1->id<< "," << b2->id <<")= " << i << "," << j << "," << k << "\n";
                 b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b1->particles[j], b2->particles[k]);
             }
         }
     }
 }
+
 
 /**
  * Method to calculate interactions between particles in three buffers.
@@ -284,34 +300,31 @@ void calculateBufs(Buffer *b0, Buffer *b1, Buffer* b2){
     int n1 = b1->id;
     int n2 = b2->id;
 //    stream << "calculate " << n0 << " "<< n1 << " " << n2 << '\n';
-    if(n0 == n1 && n0 == n2){
-        calculateOne(b0);
-    } else if(n0 == n1) {
-        calculateTwo(b0, b2);
-        calculateTwo(b2, b0);
-        // calculate n0 n2
-        // calculate n1 n2
-        // calculate n2 n0
-    } else if (n0 == n2){
-        calculateTwo(b0, b1);
-        calculateTwo(b1, b0);
-        // calculate n0 n1
-        // calculate n2 n1
-        // calculate n1 n0
-    } else if (n1 == n2){
-        calculateTwo(b0, b1);
-        calculateTwo(b1, b0);
-        // calculate n0 n1
-        // calculate n1 n0
-        // calculate n2 n0
-    } else {
-        calculateThree(b0, b1, b2);
-        calculateThree(b1, b0, b2);
-        calculateThree(b2, b1, b0);
-        // calculate n0 n1 n2
-        // calculate n1 n0 n2
-        // calculate n2 n0 n1
+    int size0 = getBufSizeOfProcess(b0->id);
+    int size1 = getBufSizeOfProcess(b1->id);
+    int size2 = getBufSizeOfProcess(b2->id);
+
+    TripletBank bank;
+
+
+    for(int i=0; i<size0; i++){
+        for(int j=0; j < size1; j++){
+            for(int k=0; k<size2; k++){
+                if(!bank.contains(b0->id, i, b1->id, j, b2->id, k)){
+                    bank.add(b0->id, i, b1->id, j, b2->id, k);
+//                    stream << "calc(" << b0->id << "," << b1->id<< "," << b2->id <<")= " << i << "," << j << "," << k << "\n";
+                    b0->particles[i].acc = b0->particles[i].acc - dV(b0->particles[i], b1->particles[j], b2->particles[k]);
+
+//                    stream << "calc(" << b1->id << "," << b0->id<< "," << b2->id <<")= " << j << "," << i << "," << k << "\n";
+                    b1->particles[j].acc = b1->particles[j].acc - dV(b1->particles[j], b0->particles[i], b2->particles[k]);
+
+//                    stream << "calc(" << b2->id << "," << b1->id<< "," << b0->id <<")= " << k << "," << j << "," << i << "\n";
+                    b2->particles[k].acc = b2->particles[k].acc - dV(b2->particles[k], b1->particles[j], b0->particles[i]);
+                }
+            }
+        }
     }
+//    stream << "bank size:" << bank.triplets.size() << "\n";
 }
 
 void iterate(Buffer ** buffs, int myProcessNo, int numProcesses){
@@ -321,6 +334,7 @@ void iterate(Buffer ** buffs, int myProcessNo, int numProcesses){
     Buffer *b2 = buffs[2];
 
     int p = numProcesses;
+//    LOG2("iterating ", p, myProcessNo)
 
     for(int s=p-3; s > 0; s -= 3){
 //        LOG2("s=", s, myProcessNo);
@@ -506,14 +520,14 @@ void updateAccFirst(Buffer * myBuffer, int myProcessNo){
     }
 }
 
-void printToFile(Buffer * buff, int myRank, int iter, std::string filename){
+void printToFile(Buffer * buff, int myRank, int iter, std::string filename, int numParticles){
     std::ofstream outputFile;
     filename += "_";
     filename += std::to_string(iter);
     filename += ".txt";
     for(int i=0; i < numProcesses; i++){
         MPI_Barrier(MPI_COMM_WORLD);
-        if(myRank == i){
+        if(myRank == i && myRank < numParticles){
 
             if(myRank == 0){
                 outputFile.open(filename);
@@ -521,7 +535,8 @@ void printToFile(Buffer * buff, int myRank, int iter, std::string filename){
                 outputFile.open(filename, std::ios_base::app);
             }
 
-            for(Particle p : buff->particles){
+            for(int k=0; k<getBufSizeOfProcess(myRank); k++){
+                Particle p = buff->particles.at(k);
                 outputFile << p.pos.toString() << " " << p.vel.toString() << "\n";
             }
 
@@ -529,7 +544,7 @@ void printToFile(Buffer * buff, int myRank, int iter, std::string filename){
         }
     }
 }
-
+//
 //void printBuff(Buffer *b){
 //    stream << "{" ;
 //    for(int i=0; i<getBufSizeOfProcess(b->id); i++){
@@ -645,7 +660,7 @@ int main(int argc, char * argv[])
 
     par.resize(getMaxBufSize());
     auto * myBuff = new Buffer(par, myProcessNo);
-//    stream << "Before: myBuff[" << myBuff->id << "]";
+//    stream << "Before:myBuff[" << myBuff->id << "]";
 //    printBuff(myBuff);
 //    stream << "\n";
 
@@ -656,7 +671,7 @@ int main(int argc, char * argv[])
         update(myBuff, myProcessNo, dt);
 
         if(verbose && i < n-1){
-            printToFile(myBuff, myProcessNo, i+1,argv[2]);
+            printToFile(myBuff, myProcessNo, i+1,argv[2], numParticles);
         }
     }
 
@@ -669,7 +684,7 @@ int main(int argc, char * argv[])
              << duration.count() << " microseconds" << std::endl;
     }
 
-    printToFile(myBuff, myProcessNo, n, argv[2]);
+    printToFile(myBuff, myProcessNo, n, argv[2], numParticles);
 
 
 //    stream << "After: myBuff[" << myBuff->id << "]";
@@ -681,6 +696,7 @@ int main(int argc, char * argv[])
 //        if(myProcessNo == i){
 //            std::cout << "PROC-" << i << " LOG\n\n";
 //            std::cout << stream.str() << "\n";
+//            usleep(300);
 //        }
 //    }
 

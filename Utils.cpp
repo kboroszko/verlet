@@ -5,6 +5,7 @@
 #include <fstream>
 #include <cmath>
 #include "Utils.h"
+#include<bits/stdc++.h>
 
 #define EPS 4.69041575982343e-08
 #define MINIMAL(x) ((std::abs(x) > 1e-10) ? (x) : 1e-10)
@@ -98,3 +99,57 @@ std::vector<Particle> readFile(const char * filename){
     }
     return ret;
 }
+
+
+Triplet::Triplet(int bid0, int n0,int bid1, int n1,int bid2, int n2) {
+    pairs = new std::vector<std::pair<int,int>>();
+    this->pairs->reserve(3);
+    pairs->push_back({bid0, n0});
+    pairs->push_back({bid1, n1});
+    pairs->push_back({bid2, n2});
+    std::sort(pairs->begin(), pairs->end());
+}
+
+bool Triplet::equals(Triplet* other) {
+    for(int i=0; i<3; i++){
+        if(this->pairs->at(i) != other->pairs->at(i)){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Triplet::valid() {
+    bool differentBuffer01 = pairs->at(0).first != pairs->at(1).first;
+    bool differentBuffer12 = pairs->at(1).first != pairs->at(2).first;
+    bool differentIdx01 = pairs->at(0).second != pairs->at(1).second;
+    bool differentIdx12 = pairs->at(1).second != pairs->at(2).second;
+    bool differentIdx02 = pairs->at(0).second != pairs->at(2).second;
+    return (differentBuffer01 && differentBuffer12) || // trzy różne bufory
+            (differentBuffer01 && differentIdx12) || // dwa ostatnie takie same
+            (differentBuffer12 && differentIdx01) || // dwa pierwsze takie same
+            (differentIdx01 && differentIdx12 && differentIdx02); //ten sam bufor
+}
+
+TripletBank::TripletBank() {
+    this->triplets = std::vector<Triplet*>();
+}
+
+void TripletBank::add(int bid0, int n0, int bid1, int n1, int bid2, int n2) {
+    triplets.push_back(new Triplet(bid0, n0, bid1, n1, bid2, n2));
+}
+
+bool TripletBank::contains(int bid0, int n0, int bid1, int n1, int bid2, int n2) {
+    Triplet * t = new Triplet(bid0, n0, bid1, n1, bid2, n2);
+    if(!t->valid()){
+        return true;
+    }
+    for(Triplet* tr : triplets){
+        if(tr->equals(t)){
+            return true;
+        }
+    }
+    return false;
+}
+
+
